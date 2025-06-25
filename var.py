@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 st.title("📉 Value at Risk (VaR) Calculator - Indian Stocks")
 
+# User inputs
 tickers_input = st.text_input("Enter NSE stock tickers (comma separated, e.g., RELIANCE, INFY, TCS):")
 weights_input = st.text_input("Enter corresponding weights in %, comma separated (e.g., 50, 30, 20):")
 start_date = st.date_input("Start Date")
@@ -17,7 +18,7 @@ portfolio_value = st.number_input("Enter Portfolio Value (₹)", value=100000.0)
 def fetch_data(tickers, start, end):
     tickers = [t.strip().upper() + ".NS" if not t.strip().upper().endswith(".NS") else t.strip().upper()
                for t in tickers.split(',')]
-    data = yf.download(tickers, start=start, end=end, group_by="ticker", progress=False)
+    data = yf.download(tickers, start=start, end=end, group_by="ticker", progress=False, auto_adjust=True)
 
     if data.empty:
         st.warning("⚠️ No data returned. Check tickers or date range.")
@@ -25,11 +26,11 @@ def fetch_data(tickers, start, end):
 
     if isinstance(data.columns, pd.MultiIndex):
         try:
-            return data['Adj Close']
+            return data.xs('Adj Close', axis=1, level=1, drop_level=True)
         except KeyError:
             try:
                 st.warning("⚠️ 'Adj Close' not found. Using 'Close' instead.")
-                return data['Close']
+                return data.xs('Close', axis=1, level=1, drop_level=True)
             except KeyError:
                 st.error("❌ Neither 'Adj Close' nor 'Close' found.")
                 return pd.DataFrame()
