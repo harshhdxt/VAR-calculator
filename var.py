@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 st.title("📉 Value at Risk (VaR) Calculator - Indian Stocks")
 
-tickers = st.text_input("Enter NSE stock tickers (comma separated, e.g., RELIANCE, INFY, TCS):")
+tickers_input = st.text_input("Enter NSE stock tickers (comma separated, e.g., RELIANCE, INFY, TCS):")
 weights_input = st.text_input("Enter corresponding weights in %, comma separated (e.g., 50, 30, 20):")
 start_date = st.date_input("Start Date")
 end_date = st.date_input("End Date")
@@ -15,22 +15,24 @@ confidence_level = st.selectbox("Confidence Level", [90, 95, 99])
 portfolio_value = st.number_input("Enter Portfolio Value (₹)", value=100000.0)
 
 def fetch_data(tickers, start, end):
-    tickers = [t.strip().upper() + ".NS" for t in tickers.split(',')]
-    data = yf.download(tickers, start=start, end=end)
+    tickers = [t.strip().upper() + ".NS" if not t.strip().upper().endswith(".NS") else t.strip().upper()
+               for t in tickers.split(',')]
+    data = yf.download(tickers, start=start, end=end, group_by="ticker", progress=False)
 
     if data.empty:
         st.warning("⚠️ No data returned. Check tickers or date range.")
         return pd.DataFrame()
 
     if isinstance(data.columns, pd.MultiIndex):
-        if 'Adj Close' in data.columns.levels[0]:
+        try:
             return data['Adj Close']
-        elif 'Close' in data.columns.levels[0]:
-            st.warning("⚠️ 'Adj Close' not found. Using 'Close' instead.")
-            return data['Close']
-        else:
-            st.error("❌ Neither 'Adj Close' nor 'Close' found.")
-            return pd.DataFrame()
+        except KeyError:
+            try:
+                st.warning("⚠️ 'Adj Close' not found. Using 'Close' instead.")
+                return data['Close']
+            except KeyError:
+                st.error("❌ Neither 'Adj Close' nor 'Close' found.")
+                return pd.DataFrame()
     elif 'Adj Close' in data.columns:
         return data[['Adj Close']]
     elif 'Close' in data.columns:
@@ -90,7 +92,7 @@ def export_csv(rolling_returns):
     df.index.name = 'Date'
     return df.to_csv().encode('utf-8')
 
-if tickers and weights_input and start_date and end_date:
+if tickers_input and weights_input and start_date and end_date:
     try:
         weights = list(map(float, weights_input.split(',')))
         if sum(weights) != 100:
@@ -100,7 +102,7 @@ if tickers and weights_input and start_date and end_date:
         st.error("⚠️ Invalid weights format. Use comma-separated numbers like: 50, 30, 20")
         st.stop()
 
-    price_data = fetch_data(tickers, start_date, end_date)
+    price_data = fetch_data(tickers_input, start_date, end_date)
 
     if not price_data.empty:
         st.success("✅ Data fetched successfully:")
